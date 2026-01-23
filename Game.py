@@ -33,12 +33,13 @@ def main(highest_score, highest_count):
     ground = Ground(cfg.IMAGE_PATHS['ground'], position=(0, cfg.SCREENSIZE[1]))
     # 加载背景图片
     background = pygame.image.load(cfg.IMAGE_PATHS['background'])
-    # 调整背景图片大小以适应屏幕
     background = pygame.transform.scale(background, cfg.SCREENSIZE)
     background_rect = background.get_rect()
+    # 定义sprite
     cloud_sprites_group = pygame.sprite.Group()
     droid_sprites_group = pygame.sprite.Group()
     vulture_sprites_group = pygame.sprite.Group()
+    blast_sprites_group = pygame.sprite.Group()
     add_obstacle_timer = 0
     score_timer = 0
     # 游戏主循环
@@ -69,7 +70,7 @@ def main(highest_score, highest_count):
                 droid_sprites_group.add(Droid(cfg.IMAGE_PATHS['droid'], speed=ground.speed))
             else:
                 position_ys = [cfg.SCREENSIZE[1]*0.82, cfg.SCREENSIZE[1]*0.75, cfg.SCREENSIZE[1]*0.60, cfg.SCREENSIZE[1]*0.40]
-                rspeed = random.randrange(15, 30)
+                rspeed = random.randrange(35, 50)
                 rspeed /= 10
                 vulture_sprites_group.add(Vulture(cfg.IMAGE_PATHS['vulture'], position=(1200, random.choice(position_ys)), speed=ground.speed-rspeed))
         
@@ -77,8 +78,11 @@ def main(highest_score, highest_count):
         player.update()
         ground.update()
         cloud_sprites_group.update()
-        droid_sprites_group.update()
+
+        droid_sprites_group.update(blast_sprites_group)
         vulture_sprites_group.update()
+        blast_sprites_group.update()
+
         if count > highest_count:
             highest_count = count
         score_timer += 1
@@ -116,6 +120,31 @@ def main(highest_score, highest_count):
             if pygame.sprite.collide_mask(player, item):
                 player.die(sounds)
                 player.update()
+        for blast in blast_sprites_group:
+            if pygame.sprite.collide_mask(player, blast):
+                if player.is_striking:  # 击打状态
+                    blast.reflect(new_direction=1)  # 向右反弹
+                    sounds['jump'].play()  # 格挡音效
+                else:  # 正常状态
+                    player.die(sounds)
+                    player.update()
+                    blast.kill()
+
+        for blast in blast_sprites_group:
+            if blast.is_reflected:  # 只检测反弹的子弹
+                for droid in droid_sprites_group:
+                    if pygame.sprite.collide_mask(blast, droid) and not droid.exploding:
+                        # 反弹子弹击中
+                        blast.kill()
+                        is_droid_dead = droid.hit_by_reflected_blast()
+                        
+                        if is_droid_dead:
+                            score += 10  # 击杀奖励
+                            sounds['point'].play()
+                            count += 1
+                            #print("被消灭！")
+                        else:
+                            score += 5   # 击中奖励
 
         # --将游戏元素画到屏幕上
         screen.blit(background, background_rect)
@@ -125,6 +154,7 @@ def main(highest_score, highest_count):
         droid_sprites_group.draw(screen)
         vulture_sprites_group.draw(screen)
         player.draw(screen)
+        blast_sprites_group.draw(screen)  
 
         score_board.set(score)
         highest_score_board.set(highest_score)

@@ -51,25 +51,63 @@ class Player(pygame.sprite.Sprite):
         self.is_striking = False
         self.is_dead = False
         self.movement = [0, 0]
+        # 新增跳跃次数限制
+        self.max_jumps = 3  # 最大连跳次数
+        self.jump_count = 0  # 当前跳跃次数
+        self.can_jump_again = False  # 是否可以再次跳跃
+        '''
+        # 新增击打时长限制
+        self.strike_duration = 0  # 当前持续时间
+        self.max_strike_duration = 20  # 最大时长
+        '''
 
     '''跳跃'''
     def jump(self, sounds):
         if self.rect.top < -100:
             return
+        if not self.can_jump():
+            return
+        
         sounds['jump'].play()
         self.is_jumping = True
         self.movement[1] = -1 * self.speed
+
+        # 增加跳跃计数
+        self.jump_count += 1
+        
+    
+    '''检查是否可以跳跃'''
+    def can_jump(self):
+        # 如果已经达到最大跳跃次数，不能跳跃
+        if self.jump_count >= self.max_jumps:
+            return False
+        
+        # 如果已经可以再次跳跃，允许跳跃
+        if self.can_jump_again:
+            return True
+        
+        # 如果是第一次跳跃或者在地面上，允许跳跃
+        if self.jump_count == 0 or (not self.is_jumping and self.rect.bottom >= self.init_position[1]):
+            return True
+        
+        return True
     
     '''低头'''
     def strike(self):
         if self.is_jumping:
             return
+        
+        # 如果是重新开始，重置计时器
+        if not self.is_striking:
+            self.strike_duration = 0
+
         self.is_striking = True
     
-    '''不低头'''
+    '''停止击打'''
     def unstrike(self):
         self.is_striking = False
-    
+        self.strike_duration = 0  # 重置计时器
+
     '''死掉了'''
     def die(self, sounds):
         sounds['die'].play()
@@ -89,6 +127,13 @@ class Player(pygame.sprite.Sprite):
     
     '''更新'''
     def update(self):
+        if self.is_striking:
+            self.strike_duration += 1
+        '''
+        # 检查是否超过最大时长
+        if self.strike_duration >= self.max_strike_duration:
+            self.unstrike()
+        '''
         if self.is_dead:
             self.image_idx = 4  # 第5张图片：死亡状态
             self.loadImage()
@@ -102,15 +147,20 @@ class Player(pygame.sprite.Sprite):
             if self.rect.bottom >= self.init_position[1]:
                 self.rect.bottom = self.init_position[1]
                 self.is_jumping = False
+                # 落地后重置跳跃状态
+                if self.jump_count > 0:
+                    self.jump_count = 0  # 重置跳跃计数
+                    self.can_jump_again = True  # 可以再次跳跃
+                    #print("落地，跳跃计数重置")  # 调试信息
         
         elif self.is_striking:
             if self.refresh_counter % self.refresh_rate == 0:
                 self.refresh_counter = 0
-                # 在低头动画的两张图片间切换（第6和第7张）
+                # 在击打动画的两张图片间切换（第6和第7张）
                 self.image_idx = 5 if self.image_idx == 6 else 6
                 self.loadImage()
-        
         else:
+            self.unstrike()
             if self.refresh_counter % self.refresh_rate == 0:
                 self.refresh_counter = 0
                 # 行走动画循环（第2、3、4、1张图片）
