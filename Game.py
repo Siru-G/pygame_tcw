@@ -63,7 +63,7 @@ def main(highest_score, highest_count):
             cloud_sprites_group.add(Cloud(cfg.IMAGE_PATHS['cloud'], position=(cfg.SCREENSIZE[0], random.randrange(50, 300))))
         # --随机添加地面/空中机器人
         add_obstacle_timer += 1
-        if add_obstacle_timer > random.randrange(80, 150):
+        if add_obstacle_timer > random.randrange(50, 120):
             add_obstacle_timer = 0
             random_value = random.randrange(0, 10)
             if random_value >= 4 and random_value <= 9:
